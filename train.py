@@ -24,15 +24,15 @@ from writer import WanDBWriter
 
 @dataclass
 class GeneratorConfig:
-    first_hidden_size: int = 512
-    upsample_kernel_sizes = (16,16,4,4)
-    upsample_rates = (8,8,2,2)
-    resblock_kernel_sizes = (3,7,11)
-    resblock_dilation_sizes = ((1,3,5), (1,3,5), (1,3,5))
+    first_hidden_size: int = 256
+    upsample_kernel_sizes = (16, 16, 8)
+    upsample_rates = (8, 8, 4)
+    resblock_kernel_sizes = (3, 5, 7)
+    resblock_dilation_sizes = ((1, 2), (2, 6), (3, 12))
 
 
 NUM_EPOCHS = 15
-BATCH_SIZE = 2
+BATCH_SIZE = 16
 VALIDATION_TRANSCRIPTS = [
     'A defibrillator is a device that gives a high energy electric shock to the heart of someone who is in cardiac arrest',
     'Massachusetts Institute of Technology may be best known for its math, science and engineering education',
@@ -83,16 +83,17 @@ for e in range(NUM_EPOCHS):
     epoch_discriminator_loss_log = []
     for i, batch in tqdm(enumerate(dataloader)):
         mels = batch.mels.cuda()
+        waveforms = batch.waveform.cuda()
         waveform_preds = generator(mels).squeeze(1)
         waveform_preds = waveform_preds[:, :batch.waveform.size(-1)]
         melspec_preds = featurizer(waveform_preds.cpu()).cuda()
 
         optim_d.zero_grad()
 
-        y_df_hat_r, y_df_hat_g, _, _ = mpd(batch.waveform.cuda(), waveform_preds.detach())
+        y_df_hat_r, y_df_hat_g, _, _ = mpd(waveforms, waveform_preds.detach())
         loss_disc_f, losses_disc_f_r, losses_disc_f_g = discriminator_loss(y_df_hat_r, y_df_hat_g)
 
-        y_ds_hat_r, y_ds_hat_g, _, _ = msd(batch.waveform.cuda(), waveform_preds.detach())
+        y_ds_hat_r, y_ds_hat_g, _, _ = msd(waveforms, waveform_preds.detach())
         loss_disc_s, losses_disc_s_r, losses_disc_s_g = discriminator_loss(y_ds_hat_r, y_ds_hat_g)
 
         loss_disc = loss_disc_s + loss_disc_f
@@ -105,12 +106,10 @@ for e in range(NUM_EPOCHS):
         disable_grads(msd)
         disable_grads(mpd)
 
-        min_sz = min(melspec_preds.size(-1), mels.size(-1))
+        mel_loss = 45 * nn.L1Loss()(melspec_preds, mels)
 
-        mel_loss = 45 * nn.L1Loss()(melspec_preds[:, :, :min_sz], mels[:, :, :min_sz])
-
-        y_df_hat_r, y_df_hat_g, fmap_f_r, fmap_f_g = mpd(batch.waveform.cuda(), waveform_preds)
-        y_ds_hat_r, y_ds_hat_g, fmap_s_r, fmap_s_g = msd(batch.waveform.cuda(), waveform_preds)
+        y_df_hat_r, y_df_hat_g, fmap_f_r, fmap_f_g = mpd(waveforms, waveform_preds)
+        y_ds_hat_r, y_ds_hat_g, fmap_s_r, fmap_s_g = msd(waveforms, waveform_preds)
         fm_loss_f = feature_loss(fmap_f_r, fmap_f_g)
         fm_loss_s = feature_loss(fmap_s_r, fmap_s_g)
         gen_loss_f, gen_losses_f = generator_loss(y_df_hat_g)
