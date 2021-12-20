@@ -2,6 +2,8 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
+from loss import feature_loss
+
 
 class PeriodSubDiscriminator(torch.nn.Module):
     def __init__(self, period):
@@ -55,7 +57,7 @@ class MPD(torch.nn.Module):
             gen_x, gen_feature = d(generated)
             reals.append(real_x)
             gens.append(gen_x)
-            loss += nn.L1Loss()(real_feature, gen_feature)
+            loss += feature_loss(real_feature, gen_feature)
 
         return reals, gens, loss
 
@@ -110,6 +112,6 @@ class MSD(torch.nn.Module):
             gen_x, gen_feature = d(generated)
             reals.append(real_x)
             gens.append(gen_x)
-            loss += nn.L1Loss()(real_feature, gen_feature)
+            loss += feature_loss(real_feature, gen_feature)
 
         return reals, gens, loss
