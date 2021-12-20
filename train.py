@@ -17,6 +17,7 @@ from dataset import LJSpeechDataset, LJSpeechCollator
 from discriminator import MSD, MPD
 from featurizer import MelSpectrogram, MelSpectrogramConfig
 from generator import Generator
+from loss import discriminator_loss, feature_loss, generator_loss
 from utils import plot_spectrogram_to_buf, disable_grads, enable_grads
 from writer import WanDBWriter
 
@@ -90,12 +91,10 @@ for e in range(NUM_EPOCHS):
         optim_d.zero_grad()
 
         mpd_r, mpd_g, _, _ = mpd(waveforms, waveform_preds.detach())
-        mpd_loss = nn.MSELoss(mpd_r, torch.zeros(mpd_r.size(), device='cuda')) + \
-                   nn.MSELoss(mpd_g, torch.zeros(mpd_g.size(), device='cuda'))
+        mpd_loss = discriminator_loss(mpd_r, mpd_g)
 
         msd_r, msd_g, _, _ = msd(waveforms, waveform_preds.detach())
-        msd_loss = nn.MSELoss(msd_r, torch.zeros(msd_r.size(), device='cuda')) + \
-                   nn.MSELoss(msd_g, torch.zeros(msd_g.size(), device='cuda'))
+        msd_loss = discriminator_loss(msd_r, msd_g)
 
         loss_disc = (mpd_loss + msd_loss) * msd_r.size(0)
 
@@ -111,10 +110,10 @@ for e in range(NUM_EPOCHS):
 
         mpd_r, mpd_g, mpd_features_r, mpd_features_g = mpd(waveforms, waveform_preds)
         msd_r, msd_g, msd_features_r, msd_features_g = msd(waveforms, waveform_preds)
-        fm_loss_f = nn.L1Loss(mpd_features_r, mpd_features_g) * mpd_features_r.size(0) * mpd_features_r.size(1)
-        fm_loss_s = nn.L1Loss(msd_features_r, msd_features_g) * msd_features_g.size(0) * msd_features_g.size(1)
-        gen_loss_f = nn.MSELoss()(mpd_g, torch.ones(mpd_g.size(), device='cuda'))
-        gen_loss_s = nn.MSELoss()(msd_g, torch.ones(mpd_g.size(), device='cuda'))
+        fm_loss_f = feature_loss(mpd_features_r, mpd_features_g)
+        fm_loss_s = feature_loss(msd_features_r, msd_features_g)
+        gen_loss_f = generator_loss(mpd_g)
+        gen_loss_s = generator_loss(msd_g)
         gen_loss = gen_loss_s + gen_loss_f + fm_loss_s + fm_loss_f + mel_loss
 
         gen_loss.backward()

@@ -17,7 +17,7 @@ class PeriodSubDiscriminator(torch.nn.Module):
         self.fc = nn.Conv2d(1024, 1, (3, 1), 1, padding=(1, 0))
 
     def forward(self, x):
-        features = None
+        features = []
 
         if x.size(-1) % self.period:
             x = F.pad(x, (0, self.period - (x.size(-1) % self.period)), "reflect")
@@ -27,12 +27,9 @@ class PeriodSubDiscriminator(torch.nn.Module):
         for layer in self.convs:
             x = layer(x)
             x = F.leaky_relu(x)
-            if features is None:
-                features = x.unsqueeze(0)
-            else:
-                features = nn.utils.rnn.pad_sequence((features, x.unsqueeze(0)))
+            features.append(x)
         x = self.fc(x)
-        features = nn.utils.rnn.pad_sequence((features, x.unsqueeze(0)))
+        features.append(x)
         x = torch.flatten(x, 1, -1)
 
         return x, features
@@ -51,23 +48,17 @@ class MPD(torch.nn.Module):
         )
 
     def forward(self, real, generated):
-        reals = None
-        gens = None
-        real_features = None
-        gen_features = None
+        reals = []
+        gens = []
+        real_features = []
+        gen_features = []
         for i, d in enumerate(self.sub_discriminators):
             real_x, real_feature = d(real)
             gen_x, gen_feature = d(generated)
-            if reals is None:
-                reals = real_x.unsqueeze(0)
-                real_features = real_feature.unsqueeze(0)
-                gens = gen_x.unsqueeze(0)
-                gen_features = gen_feature.unsqueeze(0)
-            else:
-                reals = torch.cat((reals, real_x.unsqueeze(0)))
-                real_features = torch.cat((real_features, real_feature.unsqueeze(0)))
-                gens = torch.cat((gens, gen_x.unsqueeze(0)))
-                gen_features = torch.cat((gen_features, gen_feature.unsqueeze(0)))
+            reals.append(real_x)
+            real_features.append(real_feature)
+            gens.append(gen_x)
+            gen_features.append(gen_feature)
 
         return reals, gens, real_features, gen_features
 
@@ -88,16 +79,13 @@ class ScaleSubDiscriminator(torch.nn.Module):
 
     def forward(self, x):
         x = x.unsqueeze(1)
-        features = None
+        features = []
         for layer in self.convs:
             x = layer(x)
             x = F.leaky_relu(x)
-            if features is None:
-                features = x.unsqueeze(0)
-            else:
-                features = nn.utils.rnn.pad_sequence((features, x.unsqueeze(0)))
+            features.append(x)
         x = self.conv_post(x)
-        features = nn.utils.rnn.pad_sequence((features, x.unsqueeze(0)))
+        features.append(x)
         x = torch.flatten(x, 1, -1)
 
         return x, features
@@ -117,25 +105,19 @@ class MSD(torch.nn.Module):
         ])
 
     def forward(self, real, generated):
-        reals = None
-        gens = None
-        real_features = None
-        gen_features = None
+        reals = []
+        gens = []
+        real_features = []
+        gen_features = []
         for i, d in enumerate(self.discriminators):
             if i != 0:
                 real = self.meanpools[i - 1](real)
                 generated = self.meanpools[i - 1](generated)
             real_x, real_feature = d(real)
             gen_x, gen_feature = d(generated)
-            if reals is None:
-                reals = real_x.unsqueeze(0)
-                real_features = real_feature.unsqueeze(0)
-                gens = gen_x.unsqueeze(0)
-                gen_features = gen_feature.unsqueeze(0)
-            else:
-                reals = torch.cat((reals, real_x.unsqueeze(0)))
-                real_features = torch.cat((real_features, real_feature.unsqueeze(0)))
-                gens = torch.cat((gens, gen_x.unsqueeze(0)))
-                gen_features = torch.cat((gen_features, gen_feature.unsqueeze(0)))
+            reals.append(real_x)
+            real_features.append(real_feature)
+            gens.append(gen_x)
+            gen_features.append(gen_feature)
 
         return reals, gens, real_features, gen_features
