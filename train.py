@@ -90,10 +90,10 @@ for e in range(NUM_EPOCHS):
 
         optim_d.zero_grad()
 
-        mpd_r, mpd_g, _, _ = mpd(waveforms, waveform_preds.detach())
+        mpd_r, mpd_g, _ = mpd(waveforms, waveform_preds.detach())
         mpd_loss = discriminator_loss(mpd_r, mpd_g)
 
-        msd_r, msd_g, _, _ = msd(waveforms, waveform_preds.detach())
+        msd_r, msd_g, _ = msd(waveforms, waveform_preds.detach())
         msd_loss = discriminator_loss(msd_r, msd_g)
 
         loss_disc = mpd_loss + msd_loss
