@@ -98,10 +98,7 @@ class MSD(torch.nn.Module):
             ScaleSubDiscriminator(),
             ScaleSubDiscriminator(),
         ])
-        self.meanpools = nn.ModuleList([
-            nn.AvgPool1d(4, 2, padding=2),
-            nn.AvgPool1d(4, 2, padding=2)
-        ])
+        self.pool = nn.AvgPool1d(4, 2, padding=2)
 
     def forward(self, real, generated):
         reals = []
@@ -110,8 +107,8 @@ class MSD(torch.nn.Module):
         gen_features = []
         for i, d in enumerate(self.discriminators):
             if i != 0:
-                real = self.meanpools[i - 1](real)
-                generated = self.meanpools[i - 1](generated)
+                real = self.pool(real)
+                generated = self.pool(generated)
             real_x, real_feature = d(real)
             gen_x, gen_feature = d(generated)
             reals.append(real_x)
