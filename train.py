@@ -1,13 +1,12 @@
 from itertools import chain
 
-import PIL
 import numpy as np
+import PIL
 import torch
 
 from dataclasses import dataclass
 
 import torchaudio
-from torchvision.transforms import ToTensor
 
 from torch import nn
 from torch.utils.data import DataLoader
@@ -20,7 +19,6 @@ from featurizer import MelSpectrogram, MelSpectrogramConfig
 from generator import Generator
 from loss import discriminator_loss, feature_loss, generator_loss
 from utils import plot_spectrogram_to_buf, disable_grads, enable_grads
-from vocoder import Vocoder
 from writer import WanDBWriter
 
 
@@ -45,7 +43,6 @@ VALIDATION_TRANSCRIPTS = [
 aligner = GraphemeAligner().to('cuda')
 dataloader = DataLoader(LJSpeechDataset('.'), batch_size=BATCH_SIZE, collate_fn=LJSpeechCollator())
 featurizer = MelSpectrogram(MelSpectrogramConfig())
-vocoder = Vocoder().to('cuda:0').eval()
 writer = WanDBWriter()
 
 generator = Generator(GeneratorConfig).cuda()
@@ -68,7 +65,11 @@ scheduler_d = torch.optim.lr_scheduler.CosineAnnealingLR(optim_d, 2000, 1e-7)
 
 tokenizer = torchaudio.pipelines.TACOTRON2_GRIFFINLIM_CHAR_LJSPEECH.get_text_processor()
 
-val_batch = tokenizer(VALIDATION_TRANSCRIPTS)[0].to('cuda')
+val_batch = (
+    torchaudio.load('audio_1.wav'),
+    torchaudio.load('audio_2.wav'),
+    torchaudio.load('audio_3.wav'),
+)
 
 generator_loss_log = []
 discriminator_loss_log = []
@@ -136,7 +137,7 @@ for e in range(NUM_EPOCHS):
 
     with torch.no_grad():
         generator.eval()
-        generated_waves = vocoder.inference(generator(val_batch.mels.cuda())).cpu().squeeze(1)
+        generated_waves = (generator(sample.unsqueeze(0).cuda()).cpu().squeeze(1) for sample in val_batch)
 
         for audio, t in zip(generated_waves, VALIDATION_TRANSCRIPTS):
             image = PIL.Image.open(plot_spectrogram_to_buf(audio))
