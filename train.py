@@ -96,7 +96,7 @@ for e in range(NUM_EPOCHS):
         msd_r, msd_g, _, _ = msd(waveforms, waveform_preds.detach())
         msd_loss = discriminator_loss(msd_r, msd_g)
 
-        loss_disc = (mpd_loss + msd_loss) * msd_r.size(0)
+        loss_disc = mpd_loss + msd_loss
 
         loss_disc.backward()
         optim_d.step()
