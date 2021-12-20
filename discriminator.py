@@ -17,7 +17,7 @@ class PeriodSubDiscriminator(torch.nn.Module):
         self.fc = nn.Conv2d(1024, 1, (3, 1), 1, padding=(1, 0))
 
     def forward(self, x):
-        features = []
+        features = None
 
         if x.size(-1) % self.period:
             x = F.pad(x, (0, self.period - (x.size(-1) % self.period)), "reflect")
@@ -27,9 +27,12 @@ class PeriodSubDiscriminator(torch.nn.Module):
         for layer in self.convs:
             x = layer(x)
             x = F.leaky_relu(x)
-            features.append(x)
+            if features is None:
+                features = x.unsqueeze(0)
+            else:
+                features = torch.cat((features, x.unsqueeze(0)))
         x = self.fc(x)
-        features.append(x)
+        features = torch.cat((features, x.unsqueeze(0)))
         x = torch.flatten(x, 1, -1)
 
         return x, features
@@ -85,13 +88,16 @@ class ScaleSubDiscriminator(torch.nn.Module):
 
     def forward(self, x):
         x = x.unsqueeze(1)
-        features = []
+        features = None
         for layer in self.convs:
             x = layer(x)
             x = F.leaky_relu(x)
-            features.append(x)
+            if features is None:
+                features = x.unsqueeze(0)
+            else:
+                features = torch.cat((features, x.unsqueeze(0)))
         x = self.conv_post(x)
-        features.append(x)
+        features = torch.cat((features, x.unsqueeze(0)))
         x = torch.flatten(x, 1, -1)
 
         return x, features
