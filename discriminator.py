@@ -48,17 +48,23 @@ class MPD(torch.nn.Module):
         )
 
     def forward(self, real, generated):
-        reals = []
-        gens = []
-        real_features = []
-        gen_features = []
+        reals = None
+        gens = None
+        real_features = None
+        gen_features = None
         for i, d in enumerate(self.sub_discriminators):
             real_x, real_feature = d(real)
             gen_x, gen_feature = d(generated)
-            reals.append(real_x)
-            real_features.append(real_feature)
-            gens.append(gen_x)
-            gen_features.append(gen_feature)
+            if reals is None:
+                reals = real_x.unsqueeze(0)
+                real_features = real_feature.unsqueeze(0)
+                gens = gen_x.unsqueeze(0)
+                gen_features = gen_feature.unsqueeze(0)
+            else:
+                reals = torch.cat((reals, real_x.unsqueeze(0)))
+                real_features = torch.cat((real_features, real_feature.unsqueeze(0)))
+                gens = torch.cat((gens, gen_x.unsqueeze(0)))
+                gen_features = torch.cat((gen_features, gen_feature.unsqueeze(0)))
 
         return reals, gens, real_features, gen_features
 
@@ -105,19 +111,25 @@ class MSD(torch.nn.Module):
         ])
 
     def forward(self, real, generated):
-        reals = []
-        gens = []
-        real_features = []
-        gen_features = []
+        reals = None
+        gens = None
+        real_features = None
+        gen_features = None
         for i, d in enumerate(self.discriminators):
             if i != 0:
                 real = self.meanpools[i - 1](real)
                 generated = self.meanpools[i - 1](generated)
             real_x, real_feature = d(real)
             gen_x, gen_feature = d(generated)
-            reals.append(real_x)
-            real_features.append(real_feature)
-            gens.append(gen_x)
-            gen_features.append(gen_feature)
+            if reals is None:
+                reals = real_x.unsqueeze(0)
+                real_features = real_feature.unsqueeze(0)
+                gens = gen_x.unsqueeze(0)
+                gen_features = gen_feature.unsqueeze(0)
+            else:
+                reals = torch.cat((reals, real_x.unsqueeze(0)))
+                real_features = torch.cat((real_features, real_feature.unsqueeze(0)))
+                gens = torch.cat((gens, gen_x.unsqueeze(0)))
+                gen_features = torch.cat((gen_features, gen_feature.unsqueeze(0)))
 
         return reals, gens, real_features, gen_features
