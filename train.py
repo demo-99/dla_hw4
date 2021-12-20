@@ -66,9 +66,9 @@ scheduler_d = torch.optim.lr_scheduler.CosineAnnealingLR(optim_d, 2000, 1e-7)
 tokenizer = torchaudio.pipelines.TACOTRON2_GRIFFINLIM_CHAR_LJSPEECH.get_text_processor()
 
 val_batch = (
-    torchaudio.load('audio_1.wav'),
-    torchaudio.load('audio_2.wav'),
-    torchaudio.load('audio_3.wav'),
+    featurizer(torchaudio.load('audio_1.wav')[0]),
+    featurizer(torchaudio.load('audio_2.wav')[0]),
+    featurizer(torchaudio.load('audio_3.wav')[0]),
 )
 
 generator_loss_log = []
@@ -136,7 +136,7 @@ for e in range(NUM_EPOCHS):
 
     with torch.no_grad():
         generator.eval()
-        generated_waves = (generator(sample.unsqueeze(0).cuda()).cpu().squeeze(1) for sample in val_batch)
+        generated_waves = (generator(sample.cuda()).cpu().squeeze(1) for sample in val_batch)
 
         for audio, t in zip(generated_waves, VALIDATION_TRANSCRIPTS):
             image = PIL.Image.open(plot_spectrogram_to_buf(audio))
