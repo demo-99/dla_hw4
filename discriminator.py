@@ -20,7 +20,7 @@ class PeriodSubDiscriminator(torch.nn.Module):
         features = []
 
         if x.size(-1) % self.period:
-            x = F.pad(x, (0, self.period - (x.size(-1) % self.period)), "reflect")
+            x = F.pad(x, (0, self.period - (x.size(-1) % self.period)))
         x = x.view(x.size(0), x.size(1) // self.period, self.period).unsqueeze(1)
 
         for layer in self.convs:
