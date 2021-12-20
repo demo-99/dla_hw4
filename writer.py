@@ -11,7 +11,7 @@ class WanDBWriter:
 
         wandb.login()
         wandb.init(
-            project='dla_hw3_fastspeech'
+            project='dla_hw4'
         )
         self.wandb = wandb
 
