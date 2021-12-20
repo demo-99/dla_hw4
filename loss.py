@@ -2,11 +2,11 @@ import torch
 from torch import nn
 
 
-def feature_loss(fmap_r, fmap_g):
+def feature_loss(features_r, features_g):
     loss = 0
-    for dr, dg in zip(fmap_r, fmap_g):
-        for rl, gl in zip(dr, dg):
-            loss += nn.L1Loss()(rl, gl)
+    for fr, fg in zip(features_r, features_g):
+        for r, g in zip(fr, fg):
+            loss += nn.L1Loss()(r, g)
 
     return loss*2
 

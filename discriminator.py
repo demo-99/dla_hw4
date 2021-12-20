@@ -49,7 +49,7 @@ class MPD(torch.nn.Module):
     def forward(self, real, generated):
         reals = []
         gens = []
-        real_features = []
+        loss = []
         gen_features = []
         for i, d in enumerate(self.sub_discriminators):
             real_x, real_feature = d(real)
