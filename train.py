@@ -1,3 +1,5 @@
+from itertools import chain
+
 import PIL
 import numpy as np
 import torch
@@ -60,7 +62,7 @@ except:
 
 loss_fn = nn.MSELoss()
 optim_g = torch.optim.AdamW(params=generator.parameters(), lr=2e-4, betas=(.8, .99), eps=1e-9)
-optim_d = torch.optim.AdamW(params=generator.parameters(), lr=2e-4, betas=(.8, .99), eps=1e-9)
+optim_d = torch.optim.AdamW(chain(mpd.parameters(), msd.parameters()), lr=2e-4, betas=(.8, .99), eps=1e-9)
 scheduler_g = torch.optim.lr_scheduler.CosineAnnealingLR(optim_g, 2000, 1e-7)
 scheduler_d = torch.optim.lr_scheduler.CosineAnnealingLR(optim_d, 2000, 1e-7)
 
@@ -80,7 +82,7 @@ for e in range(NUM_EPOCHS):
     epoch_discriminator_loss_log = []
     for i, batch in tqdm(enumerate(dataloader)):
         mels = batch.mels.cuda()
-        waveform_preds = generator(mels).squeeze()
+        waveform_preds = generator(mels).squeeze(1)
         waveform_preds = waveform_preds[:, :batch.waveform.size(-1)]
         melspec_preds = featurizer(waveform_preds.cpu()).cuda()
 
