@@ -136,12 +136,11 @@ for e in range(NUM_EPOCHS):
 
     with torch.no_grad():
         generator.eval()
-        generated_waves = vocoder.inference(generator(val_batch, None)[0]).cpu()
+        generated_waves = vocoder.inference(generator(val_batch.mels.cuda())).cpu().squeeze(1)
 
         for audio, t in zip(generated_waves, VALIDATION_TRANSCRIPTS):
             image = PIL.Image.open(plot_spectrogram_to_buf(audio))
-            writer.add_image("Waveform for '{}'".format(t), ToTensor()(image))
-            writer.add_audio("Audio for '{}'".format(t), audio, MelSpectrogramConfig.sr)
+            writer.add_audio("Generated audio for '{}'".format(t), audio, MelSpectrogramConfig.sr)
 
     torch.save(generator.state_dict(), 'generator_state')
     torch.save(msd.state_dict(), 'msd_state')
