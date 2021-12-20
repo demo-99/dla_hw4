@@ -30,9 +30,9 @@ class PeriodSubDiscriminator(torch.nn.Module):
             if features is None:
                 features = x.unsqueeze(0)
             else:
-                features = torch.cat((features, x.unsqueeze(0)))
+                features = nn.utils.rnn.pad_sequence((features, x.unsqueeze(0)))
         x = self.fc(x)
-        features = torch.cat((features, x.unsqueeze(0)))
+        features = nn.utils.rnn.pad_sequence((features, x.unsqueeze(0)))
         x = torch.flatten(x, 1, -1)
 
         return x, features
@@ -95,9 +95,9 @@ class ScaleSubDiscriminator(torch.nn.Module):
             if features is None:
                 features = x.unsqueeze(0)
             else:
-                features = torch.cat((features, x.unsqueeze(0)))
+                features = nn.utils.rnn.pad_sequence((features, x.unsqueeze(0)))
         x = self.conv_post(x)
-        features = torch.cat((features, x.unsqueeze(0)))
+        features = nn.utils.rnn.pad_sequence((features, x.unsqueeze(0)))
         x = torch.flatten(x, 1, -1)
 
         return x, features
