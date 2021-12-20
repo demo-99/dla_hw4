@@ -49,17 +49,15 @@ class MPD(torch.nn.Module):
     def forward(self, real, generated):
         reals = []
         gens = []
-        loss = []
-        gen_features = []
+        loss = 0
         for i, d in enumerate(self.sub_discriminators):
             real_x, real_feature = d(real)
             gen_x, gen_feature = d(generated)
             reals.append(real_x)
-            real_features.append(real_feature)
             gens.append(gen_x)
-            gen_features.append(gen_feature)
+            loss += nn.L1Loss()(real_feature, gen_feature)
 
-        return reals, gens, real_features, gen_features
+        return reals, gens, loss
 
 
 class ScaleSubDiscriminator(torch.nn.Module):
@@ -103,8 +101,7 @@ class MSD(torch.nn.Module):
     def forward(self, real, generated):
         reals = []
         gens = []
-        real_features = []
-        gen_features = []
+        loss = 0
         for i, d in enumerate(self.discriminators):
             if i != 0:
                 real = self.pool(real)
@@ -112,8 +109,7 @@ class MSD(torch.nn.Module):
             real_x, real_feature = d(real)
             gen_x, gen_feature = d(generated)
             reals.append(real_x)
-            real_features.append(real_feature)
             gens.append(gen_x)
-            gen_features.append(gen_feature)
+            loss += nn.L1Loss()(real_feature, gen_feature)
 
-        return reals, gens, real_features, gen_features
+        return reals, gens, loss

@@ -17,7 +17,7 @@ from dataset import LJSpeechDataset, LJSpeechCollator
 from discriminator import MSD, MPD
 from featurizer import MelSpectrogram, MelSpectrogramConfig
 from generator import Generator
-from loss import discriminator_loss, feature_loss, generator_loss
+from loss import discriminator_loss, generator_loss
 from utils import plot_spectrogram_to_buf, disable_grads, enable_grads
 from writer import WanDBWriter
 
@@ -108,13 +108,11 @@ for e in range(NUM_EPOCHS):
         disable_grads(msd)
         disable_grads(mpd)
 
-        mpd_r, mpd_g, mpd_features_r, mpd_features_g = mpd(waveforms, waveform_preds)
-        msd_r, msd_g, msd_features_r, msd_features_g = msd(waveforms, waveform_preds)
-        fm_loss_f = feature_loss(mpd_features_r, mpd_features_g)
-        fm_loss_s = feature_loss(msd_features_r, msd_features_g)
-        gen_loss_f = generator_loss(mpd_g)
-        gen_loss_s = generator_loss(msd_g)
-        gen_loss = gen_loss_s + gen_loss_f + fm_loss_s + fm_loss_f + mel_loss
+        mpd_r, mpd_g, mpd_feature_loss = mpd(waveforms, waveform_preds)
+        msd_r, msd_g, msd_feature_loss = msd(waveforms, waveform_preds)
+        gen_loss_mpd = generator_loss(mpd_g)
+        gen_loss_msd = generator_loss(msd_g)
+        gen_loss = gen_loss_msd + gen_loss_mpd + msd_feature_loss + mpd_feature_loss + mel_loss
 
         gen_loss.backward()
         optim_g.step()
