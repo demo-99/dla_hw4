@@ -9,3 +9,4 @@ datasets
 wandb~=0.12.4
 wget
 googledrivedownloader
+wandb

@@ -17,7 +17,6 @@ from dataset import LJSpeechDataset, LJSpeechCollator
 from discriminator import MSD, MPD
 from featurizer import MelSpectrogram, MelSpectrogramConfig
 from generator import Generator
-from loss import discriminator_loss, feature_loss, generator_loss
 from utils import plot_spectrogram_to_buf, disable_grads, enable_grads
 from writer import WanDBWriter
 
@@ -31,8 +30,9 @@ class GeneratorConfig:
     resblock_dilation_sizes = ((1, 2), (2, 6), (3, 12))
 
 
+LAMBDA = 45
 NUM_EPOCHS = 15
-BATCH_SIZE = 16
+BATCH_SIZE = 4
 VALIDATION_TRANSCRIPTS = [
     'A defibrillator is a device that gives a high energy electric shock to the heart of someone who is in cardiac arrest',
     'Massachusetts Institute of Technology may be best known for its math, science and engineering education',
@@ -74,11 +74,10 @@ val_batch = (
 generator_loss_log = []
 discriminator_loss_log = []
 
-generator.train()
-msd.train()
-mpd.train()
-
 for e in range(NUM_EPOCHS):
+    generator.train()
+    msd.train()
+    mpd.train()
     epoch_generator_loss_log = []
     epoch_discriminator_loss_log = []
     for i, batch in tqdm(enumerate(dataloader)):
@@ -90,30 +89,32 @@ for e in range(NUM_EPOCHS):
 
         optim_d.zero_grad()
 
-        y_df_hat_r, y_df_hat_g, _, _ = mpd(waveforms, waveform_preds.detach())
-        loss_disc_f, losses_disc_f_r, losses_disc_f_g = discriminator_loss(y_df_hat_r, y_df_hat_g)
+        mpd_r, mpd_g, _, _ = mpd(waveforms, waveform_preds.detach())
+        mpd_loss = nn.MSELoss(mpd_r, torch.zeros(mpd_r.size(), device='cuda')) + \
+                   nn.MSELoss(mpd_g, torch.zeros(mpd_g.size(), device='cuda'))
 
-        y_ds_hat_r, y_ds_hat_g, _, _ = msd(waveforms, waveform_preds.detach())
-        loss_disc_s, losses_disc_s_r, losses_disc_s_g = discriminator_loss(y_ds_hat_r, y_ds_hat_g)
+        msd_r, msd_g, _, _ = msd(waveforms, waveform_preds.detach())
+        msd_loss = nn.MSELoss(msd_r, torch.zeros(msd_r.size(), device='cuda')) + \
+                   nn.MSELoss(msd_g, torch.zeros(msd_g.size(), device='cuda'))
 
-        loss_disc = loss_disc_s + loss_disc_f
+        loss_disc = (mpd_loss + msd_loss) * msd_r.size(0)
 
         loss_disc.backward()
         optim_d.step()
 
         optim_g.zero_grad()
 
+        mel_loss = LAMBDA * nn.L1Loss()(melspec_preds, mels)
+
         disable_grads(msd)
         disable_grads(mpd)
 
-        mel_loss = 45 * nn.L1Loss()(melspec_preds, mels)
-
-        y_df_hat_r, y_df_hat_g, fmap_f_r, fmap_f_g = mpd(waveforms, waveform_preds)
-        y_ds_hat_r, y_ds_hat_g, fmap_s_r, fmap_s_g = msd(waveforms, waveform_preds)
-        fm_loss_f = feature_loss(fmap_f_r, fmap_f_g)
-        fm_loss_s = feature_loss(fmap_s_r, fmap_s_g)
-        gen_loss_f, gen_losses_f = generator_loss(y_df_hat_g)
-        gen_loss_s, gen_losses_s = generator_loss(y_ds_hat_g)
+        mpd_r, mpd_g, mpd_features_r, mpd_features_g = mpd(waveforms, waveform_preds)
+        msd_r, msd_g, msd_features_r, msd_features_g = msd(waveforms, waveform_preds)
+        fm_loss_f = nn.L1Loss(mpd_features_r, mpd_features_g) * mpd_features_r.size(0) * mpd_features_r.size(1)
+        fm_loss_s = nn.L1Loss(msd_features_r, msd_features_g) * msd_features_g.size(0) * msd_features_g.size(1)
+        gen_loss_f = nn.MSELoss()(mpd_g, torch.ones(mpd_g.size(), device='cuda'))
+        gen_loss_s = nn.MSELoss()(msd_g, torch.ones(mpd_g.size(), device='cuda'))
         gen_loss = gen_loss_s + gen_loss_f + fm_loss_s + fm_loss_f + mel_loss
 
         gen_loss.backward()
